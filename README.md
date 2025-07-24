@@ -25,10 +25,11 @@ flowchart TD
     K --> L["New Activity/Fragment<br/>instance created"]
     
     L --> M["New Activity/Fragment<br/>onCreate() called"]
-    M --> M1["getLastNonConfigurationInstance()<br/>retrieves stored data"]
-    M1 --> N["ViewModelProvider requested<br/>in new instance"]
+    M --> M1["getLastNonConfigurationInstance()<br/>called in onCreate()"]
+    M1 --> M2["ViewModelStore restored<br/>from NonConfigurationInstances"]
+    M2 --> N["ViewModelProvider requested<br/>later in lifecycle"]
     
-    N --> O["ViewModelProvider checks<br/>existing ViewModelStore from<br/>NonConfigurationInstances"]
+    N --> O["ViewModelProvider checks<br/>already restored ViewModelStore"]
     O --> P{"ViewModel exists<br/>in store?"}
     
     P -->|"Yes"| Q["Return existing<br/>ViewModel instance"]
@@ -70,15 +71,18 @@ flowchart TD
 - This is managed by the `ViewModelStoreOwner` (Activity/Fragment)
 - The store survives the configuration change
 
-### 4. New Instance Creation
+### 4. New Instance Creation and ViewModelStore Restoration
 - New Activity/Fragment instance is created
-- Goes through creation lifecycle: `onCreate()` → `onStart()` → `onResume()`
+- `onCreate()` is called first
+- **Inside `onCreate()`**: `getLastNonConfigurationInstance()` is called to restore ViewModelStore
+- ViewModelStore is restored from NonConfigurationInstances before any ViewModelProvider requests
+- Activity continues through lifecycle: `onStart()` → `onResume()`
 
-### 5. ViewModel Retrieval
-- When `ViewModelProvider.get()` is called in the new instance:
-  - Provider checks the existing `ViewModelStore`
-  - If ViewModel exists, returns the same instance
-  - If not found, creates a new instance
+### 5. ViewModel Retrieval (Later in Lifecycle)
+- When `ViewModelProvider.get()` is called later (typically in `onCreate()` after restoration):
+  - Provider checks the **already restored** ViewModelStore
+  - If ViewModel exists in the restored store, returns the same instance
+  - If not found, creates a new instance and adds it to the store
 
 ### 6. State Preservation
 - The same ViewModel instance with all its data is returned
